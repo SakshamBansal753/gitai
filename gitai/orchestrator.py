@@ -114,8 +114,15 @@ class Orchestrator:
         except Exception:
             self.retriever = None
 
+        from fastmcp.client.transports import PythonStdioTransport
         self.mcp_clients = {
-            name: MCPClient(Path(cfg["path"])) for name, cfg in config.MCP_SERVERS.items()
+            name: MCPClient(
+                PythonStdioTransport(
+                    script_path=Path(cfg["path"]),
+                    env=dict(os.environ),
+                )
+            )
+            for name, cfg in config.MCP_SERVERS.items()
         }
         self.history: list[dict] = []
 

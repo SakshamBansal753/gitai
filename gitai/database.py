@@ -112,15 +112,48 @@ def get_engine():
             if "?" not in db_url and "&" in db_url:
                 db_url = db_url.replace("&", "?", 1)
 
+        connect_args = {
+            "connect_timeout": 15,
+        }
+
+        # Resolve hostaddr automatically to prevent DNS failure on Windows / restrictive ISPs
+        try:
+            import urllib.parse
+            import socket
+            parsed = urllib.parse.urlparse(db_url)
+            host = parsed.hostname
+            if host:
+                ip = None
+                try:
+                    infos = socket.getaddrinfo(host, 5432, socket.AF_INET, socket.SOCK_STREAM)
+                    if infos and infos[0][4]:
+                        ip = infos[0][4][0]
+                except Exception:
+                    pass
+
+                # If local DNS could not resolve, use known Neon cluster fallback IPs
+                if not ip and "neon.tech" in host:
+                    for fallback_ip in ["52.14.39.200", "77.112.100.143", "52.95.251.153"]:
+                        try:
+                            s = socket.create_connection((fallback_ip, 5432), timeout=2)
+                            s.close()
+                            ip = fallback_ip
+                            break
+                        except Exception:
+                            continue
+
+                if ip:
+                    connect_args["hostaddr"] = ip
+        except Exception:
+            pass
+
         _engine = create_engine(
             db_url,
             pool_pre_ping=True,
             pool_recycle=300,
             pool_size=10,
             max_overflow=20,
-            connect_args={
-                "connect_timeout": 15,
-            },
+            connect_args=connect_args,
         )
     return _engine
 
