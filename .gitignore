@@ -1,0 +1,32 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+# Virtual environment
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment variables
+.env
+.env.*
+
+# Chroma DB
+chroma_db/
+
+# Local cache & registries
+.gitai_auth.json
+.gitai_repo_registry.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build & packaging artifacts
+build/
+dist/
+*.egg-info/
+

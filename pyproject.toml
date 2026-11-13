@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gitai"
+version = "0.1.0"
+description = "Natural language Git and GitHub assistant"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "GitAI Team" }
+]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+dependencies = [
+    "langchain-core>=0.3.0",
+    "langchain-groq>=0.2.0",
+    "fastmcp>=2.0.0",
+    "GitPython>=3.1.43",
+    "PyGithub>=2.4.0",
+    "rich>=13.7.0",
+    "python-dotenv>=1.0.1",
+    "SQLAlchemy>=2.0.0",
+    "psycopg2-binary>=2.9.9",
+    "clerk-backend-api>=6.0.0"
+]
+
+[project.scripts]
+gitai = "gitai.cli:run_cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gitai*"]

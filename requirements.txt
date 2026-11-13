@@ -1,0 +1,26 @@
+# LLM / orchestration
+langchain-core>=0.3.0
+langchain-ollama>=0.2.0
+langchain-chroma>=0.2.0
+ollama>=0.4.0
+
+# Vector store
+chromadb>=0.5.0
+
+# MCP servers + client
+fastmcp>=2.0.0
+
+# Git / GitHub integration
+GitPython>=3.1.43
+PyGithub>=2.4.0
+
+# CLI
+rich>=13.7.0
+
+# Config / env
+python-dotenv>=1.0.1
+
+# Database / Auth
+SQLAlchemy>=2.0.0
+psycopg2-binary>=2.9.9
+clerk-backend-api>=6.0.0
