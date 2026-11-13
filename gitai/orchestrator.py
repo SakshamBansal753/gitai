@@ -1,4 +1,5 @@
 # gitai/orchestrator.py
+import os
 import json
 import re
 from pathlib import Path
@@ -99,7 +100,6 @@ class Orchestrator:
         try:
             from langchain_ollama import OllamaEmbeddings
             from langchain_chroma import Chroma
-            import os
 
             if os.path.exists(config.CHROMA_DIR):
                 embeddings = OllamaEmbeddings(model=config.EMBED_MODEL, base_url=config.OLLAMA_HOST)
