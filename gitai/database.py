@@ -122,7 +122,7 @@ def get_engine():
             import socket
             parsed = urllib.parse.urlparse(db_url)
             host = parsed.hostname
-            if host:
+            if host and "hostaddr=" not in db_url:
                 ip = None
                 try:
                     infos = socket.getaddrinfo(host, 5432, socket.AF_INET, socket.SOCK_STREAM)
@@ -131,16 +131,9 @@ def get_engine():
                 except Exception:
                     pass
 
-                # If local DNS could not resolve, use known Neon cluster fallback IPs
+                # If local DNS could not resolve, use known Neon cluster fallback IP
                 if not ip and "neon.tech" in host:
-                    for fallback_ip in ["52.14.39.200", "77.112.100.143", "52.95.251.153"]:
-                        try:
-                            s = socket.create_connection((fallback_ip, 5432), timeout=2)
-                            s.close()
-                            ip = fallback_ip
-                            break
-                        except Exception:
-                            continue
+                    ip = "52.14.39.200"
 
                 if ip:
                     connect_args["hostaddr"] = ip

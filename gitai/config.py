@@ -78,7 +78,7 @@ RETRIEVAL_K = int(os.getenv("RETRIEVAL_K", 3))
 
 # Central Auth & Database Configuration (built-in defaults for zero-config user experience)
 DEFAULT_DATABASE_URL = (
-    "postgresql://neondb_owner:npg_SuXTK9Ghr0Jn@ep-damp-thunder-b4uwy2ol-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require"
+    "postgresql://neondb_owner:npg_SuXTK9Ghr0Jn@ep-damp-thunder-b4uwy2ol-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&hostaddr=52.14.39.200"
 )
 DEFAULT_CLERK_PUBLISHABLE_KEY = "pk_test_ZGVzaXJlZC1mbGFtaW5nby05MS5jbGVyay5hY2NvdW50cy5kZXYk"
 DEFAULT_CLERK_SECRET_KEY = "sk_test_UeYMqOYo42Vdff9JuJyoAD6f6R4UYdSFT08tqrZHDO"
