@@ -30,6 +30,7 @@ ROUTING GUIDELINES:
 - If the user asks to clone, download, or get a repo locally, select "clone_repository".
 - If the user asks for status, changes, or working directory state, select "get_repo_status".
 - If the user asks to merge, select "merge_branch".
+- If the user asks to list, show, or display their repositories, select "list_my_repos".
 - Only return tool as null if the query is completely unrelated to Git or GitHub (e.g. weather, jokes, general knowledge).
 
 STRICT OUTPUT RULES:
@@ -88,7 +89,9 @@ class Orchestrator:
         if not key:
             raise ValueError("No Groq API key configured. Provide GROQ_API_KEY in environment or ~/.gitai/config.json")
 
-        self.llm = ChatGroq(model=config.GROQ_MODEL, api_key=key)
+        self.api_key = key
+        self.current_model = config.GROQ_MODEL or "llama-3.1-8b-instant"
+        self.llm = ChatGroq(model=self.current_model, api_key=self.api_key)
 
         # Optional Chroma vector store initialization
         self.retriever = None
@@ -115,19 +118,44 @@ class Orchestrator:
         }
         self.history: list[dict] = []
 
+    def _invoke_llm(self, prompt, inputs: dict) -> str:
+        """Invokes a LangChain chain with automatic model fallback on 404/model_not_found errors."""
+        candidate_models = [
+            self.current_model,
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+            "llama3-70b-8192",
+            "llama3-8b-8192",
+        ]
+        seen = set()
+        models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
+
+        last_error = None
+        for model_name in models_to_try:
+            try:
+                if model_name != self.current_model or self.llm is None:
+                    self.current_model = model_name
+                    self.llm = ChatGroq(model=model_name, api_key=self.api_key)
+                chain = prompt | self.llm
+                resp = chain.invoke(inputs)
+                return resp.content.strip()
+            except Exception as e:
+                err_str = str(e)
+                if any(k in err_str.lower() for k in ["does not exist", "model_not_found", "404"]):
+                    last_error = e
+                    continue
+                raise e
+        raise last_error
+
     def _condense(self, query: str) -> str:
         if not self.history:
             return query
 
         try:
             hist_text = "\n".join(f"{m['role']}: {m['content']}" for m in self.history[-6:])
-            chain = condense_prompt | self.llm
-            resp = chain.invoke({"history": hist_text, "input": query})
-            result = resp.content.strip()
-
+            result = self._invoke_llm(condense_prompt, {"history": hist_text, "input": query})
             if not result or len(result) > len(query) * 3:
                 return query
-
             return result
         except Exception:
             return query
@@ -155,9 +183,7 @@ class Orchestrator:
 
     def _route(self, standalone_query: str, context: str, valid_tools: set[str]) -> dict:
         try:
-            chain = router_prompt | self.llm
-            resp = chain.invoke({"context": context, "input": standalone_query})
-            raw = resp.content.strip()
+            raw = self._invoke_llm(router_prompt, {"context": context, "input": standalone_query})
         except Exception as e:
             err_str = str(e)
             if "rate_limit" in err_str.lower() or "429" in err_str:
@@ -223,9 +249,7 @@ class Orchestrator:
 
     def _format_response(self, user_query: str, result: dict) -> str:
         try:
-            chain = format_prompt | self.llm
-            resp = chain.invoke({"query": user_query, "result": json.dumps(result, default=str)})
-            return resp.content.strip()
+            return self._invoke_llm(format_prompt, {"query": user_query, "result": json.dumps(result, default=str)})
         except Exception:
             return json.dumps(result, indent=2, default=str)
 
