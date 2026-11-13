@@ -221,13 +221,12 @@ def get_cached_github_token() -> str | None:
         return env_token
 
     user_id = _current_session.get("user_id") or os.environ.get("GITAI_CURRENT_USER_ID")
-    if user_id:
-        try:
-            db_token = get_active_github_token(clerk_user_id=user_id)
-            if db_token:
-                return db_token
-        except Exception:
-            pass
+    try:
+        db_token = get_active_github_token(clerk_user_id=user_id) if user_id else get_active_github_token()
+        if db_token:
+            return db_token
+    except Exception:
+        pass
 
     return None
 

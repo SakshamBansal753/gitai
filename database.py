@@ -85,8 +85,18 @@ def get_engine():
         db_url = config.DATABASE_URL
         if not db_url:
             raise ValueError("DATABASE_URL is not set in environment or config.py")
-        if db_url.startswith("postgres://"):
-            db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+        # Explicitly specify driver: prefer psycopg2 if installed, otherwise psycopg
+        if "postgresql+" not in db_url:
+            try:
+                import psycopg2
+                driver = "postgresql+psycopg2://"
+            except ImportError:
+                driver = "postgresql+psycopg://"
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", driver, 1)
+            elif db_url.startswith("postgresql://"):
+                db_url = db_url.replace("postgresql://", driver, 1)
 
         # Clean channel_binding parameter if present as it can trigger DNS/libpq handshake issues
         if "channel_binding=" in db_url:

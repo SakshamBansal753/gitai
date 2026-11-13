@@ -108,8 +108,16 @@ def _print_user_profile():
 
     user_data = get_active_user(clerk_user_id=user_id) if user_id else get_active_user()
     if not user_data:
-        console.print("[yellow]No active user session found in database.[/yellow]")
-        return
+        if session.get("github_username"):
+            user_data = {
+                "github_username": session.get("github_username"),
+                "clerk_user_id": user_id,
+                "github_name": session.get("github_username"),
+                "github_profile_url": f"https://github.com/{session.get('github_username')}",
+            }
+        else:
+            console.print("[yellow]No active user session found.[/yellow]")
+            return
 
     table = Table(title="Current Verified Session")
     table.add_column("Field", style="cyan")

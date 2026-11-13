@@ -70,7 +70,7 @@ ROUTER_MODEL = os.getenv("ROUTER_MODEL", "llama3.2")
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
 
 GROQ_API_KEY = get_groq_api_key()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
 CHROMA_DIR = os.getenv("CHROMA_DIR", os.path.join(BASE_DIR, "chroma_db"))
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "gitai_tools")

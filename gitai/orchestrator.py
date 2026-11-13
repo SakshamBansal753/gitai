@@ -1,6 +1,7 @@
 # gitai/orchestrator.py
 import json
 import re
+from pathlib import Path
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from fastmcp import Client as MCPClient
@@ -114,18 +115,19 @@ class Orchestrator:
             self.retriever = None
 
         self.mcp_clients = {
-            name: MCPClient(cfg["path"]) for name, cfg in config.MCP_SERVERS.items()
+            name: MCPClient(Path(cfg["path"])) for name, cfg in config.MCP_SERVERS.items()
         }
         self.history: list[dict] = []
 
     def _invoke_llm(self, prompt, inputs: dict) -> str:
-        """Invokes a LangChain chain with automatic model fallback on 404/model_not_found errors."""
+        """Invokes a LangChain chain with automatic model fallback on model errors."""
         candidate_models = [
             self.current_model,
+            "openai/gpt-oss-120b",
+            "openai/gpt-oss-20b",
+            "qwen/qwen3.8-27b",
             "llama-3.1-8b-instant",
             "llama-3.3-70b-versatile",
-            "llama3-70b-8192",
-            "llama3-8b-8192",
         ]
         seen = set()
         models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
@@ -141,7 +143,7 @@ class Orchestrator:
                 return resp.content.strip()
             except Exception as e:
                 err_str = str(e)
-                if any(k in err_str.lower() for k in ["does not exist", "model_not_found", "404"]):
+                if any(k in err_str.lower() for k in ["does not exist", "model_not_found", "404", "decommissioned", "not supported", "400"]):
                     last_error = e
                     continue
                 raise e
