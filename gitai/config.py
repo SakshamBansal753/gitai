@@ -76,10 +76,10 @@ CHROMA_DIR = os.getenv("CHROMA_DIR", os.path.join(BASE_DIR, "chroma_db"))
 CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "gitai_tools")
 RETRIEVAL_K = int(os.getenv("RETRIEVAL_K", 3))
 
-# Central Auth & Database Configuration (built-in defaults for zero-config user experience)
-DEFAULT_DATABASE_URL = (
-    "postgresql://neondb_owner:npg_SuXTK9Ghr0Jn@ep-damp-thunder-b4uwy2ol-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&hostaddr=52.14.39.200"
-)
+# Central Auth & Database Configuration (local SQLite by default, zero-credential & zero-network failure)
+DEFAULT_SQLITE_PATH = os.path.join(USER_CONFIG_DIR, "gitai.db")
+DEFAULT_DATABASE_URL = f"sqlite:///{DEFAULT_SQLITE_PATH}"
+GITAI_SECRET_KEY = os.getenv("GITAI_SECRET_KEY", "gitai_local_aes_secret_master_key_2026")
 DEFAULT_CLERK_PUBLISHABLE_KEY = "pk_test_ZGVzaXJlZC1mbGFtaW5nby05MS5jbGVyay5hY2NvdW50cy5kZXYk"
 DEFAULT_CLERK_SECRET_KEY = "sk_test_UeYMqOYo42Vdff9JuJyoAD6f6R4UYdSFT08tqrZHDO"
 DEFAULT_CLERK_SIGNIN_URL = "https://desired-flamingo-91.accounts.dev/sign-in"

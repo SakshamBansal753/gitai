@@ -8,8 +8,11 @@ in PostgreSQL (Neon).
 import os
 import re
 import time
+import base64
+import hashlib
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Tuple, Callable
+from cryptography.fernet import Fernet
 
 from sqlalchemy import (
     create_engine,
@@ -30,6 +33,37 @@ except (ImportError, ValueError):
     import config
 
 Base = declarative_base()
+
+
+def _get_fernet() -> Fernet:
+    key_source = getattr(config, "GITAI_SECRET_KEY", "gitai_local_aes_secret_master_key_2026")
+    key_bytes = hashlib.sha256(key_source.encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(key_bytes))
+
+
+def encrypt_token(raw_token: Optional[str]) -> Optional[str]:
+    """Encrypts a GitHub OAuth token using AES Fernet before storing."""
+    if not raw_token:
+        return None
+    if raw_token.startswith("gAAAAA"):
+        return raw_token  # Already encrypted
+    try:
+        cipher = _get_fernet()
+        return cipher.encrypt(raw_token.encode("utf-8")).decode("utf-8")
+    except Exception:
+        return raw_token
+
+
+def decrypt_token(cipher_token: Optional[str]) -> Optional[str]:
+    """Decrypts a stored AES Fernet token in-memory."""
+    if not cipher_token:
+        return None
+    try:
+        cipher = _get_fernet()
+        return cipher.decrypt(cipher_token.encode("utf-8")).decode("utf-8")
+    except Exception:
+        # Fallback for unencrypted legacy tokens
+        return cipher_token
 
 
 class User(Base):
@@ -75,7 +109,7 @@ class User(Base):
             "github_profile_url": self.github_profile_url,
             "github_bio": self.github_bio,
             "github_public_repos": self.github_public_repos,
-            "github_token": self.github_token,
+            "github_token": decrypt_token(self.github_token),
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -94,7 +128,18 @@ def get_engine():
         if not db_url:
             raise ValueError("DATABASE_URL is not set in environment or config.py")
 
-        # Explicitly specify driver: prefer psycopg2 if installed, otherwise psycopg
+        # 1. Local SQLite database (Zero credentials, zero network, zero config)
+        if db_url.startswith("sqlite:"):
+            sqlite_file = db_url.replace("sqlite:///", "").replace("sqlite://", "")
+            if sqlite_file and sqlite_file != ":memory:":
+                os.makedirs(os.path.dirname(os.path.abspath(sqlite_file)), exist_ok=True)
+            _engine = create_engine(
+                db_url,
+                connect_args={"check_same_thread": False},
+            )
+            return _engine
+
+        # 2. PostgreSQL database (for users who provide a custom DATABASE_URL)
         if "postgresql+" not in db_url:
             try:
                 import psycopg2
@@ -256,12 +301,13 @@ def save_or_update_user(
                 user = session.query(User).filter(User.github_username == github_details["github_username"]).first()
 
             now = datetime.now(timezone.utc)
+            encrypted_tok = encrypt_token(github_token)
             if user:
                 if clerk_user_id:
                     user.clerk_user_id = clerk_user_id
                 if clerk_session_id:
                     user.clerk_session_id = clerk_session_id
-                user.github_token = github_token
+                user.github_token = encrypted_tok
                 user.github_id = github_details.get("github_id") or user.github_id
                 user.github_username = github_details.get("github_username") or user.github_username
                 user.github_name = github_details.get("github_name") or user.github_name
@@ -277,7 +323,7 @@ def save_or_update_user(
                 user = User(
                     clerk_user_id=clerk_user_id,
                     clerk_session_id=clerk_session_id,
-                    github_token=github_token,
+                    github_token=encrypted_tok,
                     github_id=github_details.get("github_id"),
                     github_username=github_details.get("github_username", "unknown"),
                     github_name=github_details.get("github_name"),
@@ -329,7 +375,7 @@ def get_active_user(clerk_user_id: Optional[str] = None) -> Optional[Dict[str, A
 
 
 def get_active_github_token(clerk_user_id: Optional[str] = None) -> Optional[str]:
-    """Retrieves the valid github token from database for active user."""
+    """Retrieves the valid decrypted github token from database for active user."""
     def _token():
         init_db()
         Session = get_session_factory()
@@ -340,7 +386,7 @@ def get_active_github_token(clerk_user_id: Optional[str] = None) -> Optional[str
                 query = query.filter(User.clerk_user_id == clerk_user_id)
             row = query.order_by(User.last_login_at.desc()).first()
             if row and row[0]:
-                return row[0]
+                return decrypt_token(row[0])
         finally:
             session.close()
         return None
@@ -365,7 +411,7 @@ def verify_user_in_db(clerk_user_id: str) -> Tuple[bool, Optional[Dict[str, Any]
             if not user:
                 return False, None, f"User {clerk_user_id} was not found or inactive in database."
 
-            token = user.github_token
+            token = decrypt_token(user.github_token)
             if not token:
                 return False, user.to_dict(), "No GitHub token found in database for this user."
 

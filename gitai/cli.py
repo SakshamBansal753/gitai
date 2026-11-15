@@ -24,7 +24,7 @@ except (ImportError, ValueError):
     import config
 
 console = Console()
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 
 def _ensure_groq_key() -> str:
