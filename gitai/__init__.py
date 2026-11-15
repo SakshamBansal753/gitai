@@ -21,7 +21,7 @@ except (ImportError, ValueError):
     from orchestrator import Orchestrator
     import config
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 
 class Client:

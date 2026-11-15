@@ -14,13 +14,13 @@ Handles GitAI's login flow via Clerk using the officially supported approach:
 7. Session state is kept securely in-memory and in PostgreSQL — NO auth JSON files on disk.
 """
 
-import webbrowser
+import json
 import os
 import threading
+import urllib.request
+import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse, parse_qs
-
-from clerk_backend_api import Clerk
+from urllib.parse import parse_qs, urlparse
 
 try:
     from . import config
@@ -125,17 +125,28 @@ def login(force_relogin: bool = False) -> dict:
         return {"status": "error", "message": "Login timed out or was cancelled."}
 
     try:
-        clerk = Clerk(bearer_auth=config.CLERK_SECRET_KEY)
-        session = clerk.sessions.get(session_id=session_id)
-        user_id = session.user_id
+        proxy_url = f"{config.CLERK_AUTH_PROXY_URL.rstrip('/')}/exchange?session_id={session_id}"
+        req = urllib.request.Request(
+            proxy_url,
+            headers={
+                "User-Agent": "GitAI-CLI",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
 
-        tokens = clerk.users.get_o_auth_access_token(user_id=user_id, provider="oauth_github")
-        if not tokens:
-            return {"status": "error", "message": "No GitHub account connected to this Clerk user."}
+        if data.get("status") != "success":
+            err_msg = data.get("message", "Unknown error from auth proxy")
+            return {"status": "error", "message": f"Auth proxy error: {err_msg}"}
 
-        github_token = tokens[0].token
+        user_id = data.get("user_id")
+        github_token = data.get("token")
+
+        if not user_id or not github_token:
+            return {"status": "error", "message": "Incomplete authentication credentials received from auth proxy."}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to retrieve GitHub credentials from Clerk: {e}"}
+        return {"status": "error", "message": f"Failed to retrieve GitHub credentials via auth proxy: {e}"}
 
     # Fetch GitHub account details
     github_details = None
